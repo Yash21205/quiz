@@ -21,8 +21,37 @@ export default function Social({ navigation }) {
 
     //function to fetch quizes of all users
     async function fetchUsersQuizes() {
-    }
+        const loggedUserId = await AsyncStorage.getItem('useruid');
+        if (loggedUserId) {
+            const quizesDbRef = firebase.app().database().ref('quizes/');
+            quizesDbRef
+                .once('value')
+                .then(resp => {
+                    const quizes = resp.val();
+                    if (quizes) {
+                        var usersQuizzes = {};
+                        for (const quizId in quizes) {
+                            const quiz = quizes[quizId];
+                            quiz["quizId"] = quizId;
+                            const createdByUserId = quiz.createdByUserId;
 
+                            if (createdByUserId !== loggedUserId) {
+                                if (!(createdByUserId in usersQuizzes)) {
+                                    usersQuizzes[createdByUserId] = [];
+                                }
+                                usersQuizzes[createdByUserId].push(quiz);
+                            }
+                        }
+                        setUsersQuizes(usersQuizzes);
+                    }
+                })
+                .catch(error => {
+                    displaySnackBar("error", "Failed to get quizes");
+                });
+        } else {
+            displaySnackBar("error", "User is not logged in");
+        }
+    }
     //function to fetch users from firebase db
     async function fetchUsers() {
         const loggeduserid= await AsyncStorage.getItem("useruid");
@@ -89,7 +118,7 @@ export default function Social({ navigation }) {
                              desc={item.desc}
                              navigation={navigation}
                             onPress={handleProfileClick}
-
+                                quizes={usersQuizes[item.userId]}
                              >
 
                              </SocialProfileItem>

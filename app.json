@@ -17,16 +17,16 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.toppr.Quizmania",
+      "buildNumber": "1.0.1"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+      "package": "com.topp.Quizmania",
+      "versionCode": 1
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     }
   }
-}
+

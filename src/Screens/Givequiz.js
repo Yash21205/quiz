@@ -1,12 +1,11 @@
-
-  
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } 
-from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import BasicButton from "../BasicComponents/BasicButton";
 import firebase from '../Firebas/firebaseconfig';
+
+import BasicButton from "../BasicComponents/BasicButton";
+
 export default function GiveQuiz({ route: {
     params: {
         quizId,
@@ -18,180 +17,162 @@ export default function GiveQuiz({ route: {
     navigation,
 }) {
     const totalQstnsCount = Object.keys(questions).length || 0;
+
     const [quizQsnts, setQuizQsnts] = useState([]);
     const [activeQstnIdx, setActiveQstnIdx] = useState(0);
     const [qstnResponses, setQstnResponses] = useState({});
     const [selectedQstnResponseOptionIdx, setSelectedQstnResponseOptionIdx] = useState(null);
+
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetchQuestion(quizId)
-
+        if (questions) {
+            //shuffling options of the qstn
+            var qstns = [];
+            for (const qstnId in questions) {
+                var qstn = questions[qstnId];
+                var options = qstn.options;
+                options = shuffle(options);
+                qstn["options"] = options;
+                qstn["questionId"] = qstnId;
+                qstns.push(qstn);
+            }
+            setQuizQsnts(qstns);
+            setIsLoading(false);
+        }
     }, []);
-    function fetchQuestion(quizId){
-        const insertKey = quizId;
-        if(insertKey){         
-            const quizDbref = firebase.app().database().ref("quizes/"+insertKey);       
-            quizDbref                  
-            .on('value', (snap)=>{
-                var questions= snap.val();
-                var qstns=[]
-                if(questions){
-                    for(var key in questions){
-                        if(key == "questions"){
-                            var data = questions[key];                          
-                            for(let c in data){
-                                var qstn = data[c]
-                                qstn["options"] = data[c].options;
-                                qstn["questionId"] = data[c].question;
-                                qstns.push(qstn)
-                            }                            
-                            setQuizQsnts(qstns)   
-                            setIsLoading(false);
-                        }
-                    }
-                }
-            })
-        }
-    
-    }
 
-   //function to handle when any option is clicked clicked on
- function handleOptionPressed(idx, option, question) {
-    if (idx != null) {
-        //checking if that qstn is already answered
-        //if already answered then not selecteding the option
-        const questionId = question["questionId"];
-        if (!qstnResponses[questionId]) {
-            setSelectedQstnResponseOptionIdx(idx);
+    //function to handle when any option is clicked clicked on
+    function handleOptionPressed(idx, option, question) {
+        if (idx != null) {
+            //checking if that qstn is already answered
+            //if already answered then not selecteding the option
+            const questionId = question["questionId"];
+            if (!qstnResponses[questionId]) {
+                setSelectedQstnResponseOptionIdx(idx);
 
-            //storing response in state
-            //  option.optionID = >  option.optionId
-            var tempQstnResponses = qstnResponses;
-            tempQstnResponses[questionId] = {
-                "questionId": questionId,
-                "question": question.question,
-                "answeredOptionId": option.optionId,
-                "answeredOption": option.option,
-                "isCorrect": option.isAns,
-            };
-            setQstnResponses(tempQstnResponses);
+                //storing response in state
+                var tempQstnResponses = qstnResponses;
+                tempQstnResponses[questionId] = {
+                    "questionId": questionId,
+                    "question": question.question,
+                    "answeredOptionId": option.optionId,
+                    "answeredOption": option.option,
+                    "isCorrect": option.isAns,
+                };
+                setQstnResponses(tempQstnResponses);
+            }
         }
     }
-}
-
-
-
 
     //function to render question
     function renderQuestion() {
-        const selectedQuestion = quizQsnts[activeQstnIdx] || {};
-        const options = selectedQuestion.options || [];
+        if (questions) {
+            const selectedQuestion = quizQsnts[activeQstnIdx] || {};
+            const options = selectedQuestion.options || [];
 
-        //rendering
-        return (
-            <ScrollView style={styles.scroll}>
-                <View style={styles.qstnContainer}>
-                    <Text style={styles.qstnCount}>{activeQstnIdx + 1 + " of " + totalQstnsCount}</Text>
-                    <Text style={styles.qstnText}>{selectedQuestion.question}</Text>
-                </View>
+            //rendering
+            return (
+                <ScrollView style={styles.scroll}>
+                    <View style={styles.qstnContainer}>
+                        <Text style={styles.qstnCount}>{activeQstnIdx + 1 + " of " + totalQstnsCount}</Text>
+                        <Text style={styles.qstnText}>{selectedQuestion.question}</Text>
+                    </View>
 
-                {
-                    options.map((item, idx) => {
-                        const questionId = selectedQuestion["questionId"];
-                        var selectedOptionId = null;
-                        if (qstnResponses[questionId]) {
-                            const qstnResponse = qstnResponses[questionId];
-                            selectedOptionId = qstnResponse["answeredOptionId"];
-                        }
+                    {
+                        options.map((item, idx) => {
+                            const questionId = selectedQuestion["questionId"];
+                            var selectedOptionId = null;
+                            if (qstnResponses[questionId]) {
+                                const qstnResponse = qstnResponses[questionId];
+                                selectedOptionId = qstnResponse["answeredOptionId"];
+                            }
 
-                        //checking os selected ans is right/wrong
-                       var optionImgSrc = require("../../assets/option.png");
-                        var optionBorder = null;
+                            //checking os selected ans is right/wrong
+                            var optionImgSrc = require("../../assets/option.png");
+                            var optionBorder = null;
 
-                        const isAns = item.isAns;
-                        const optionId = item.optionId;
-                        if ((selectedOptionId == optionId || selectedQstnResponseOptionIdx == optionId) && isAns) {
-                            optionImgSrc = require("../../assets/rightOption.png");
-                            optionBorder = styles.rightAnsBorder;
-                        } else if ((selectedOptionId == optionId || selectedQstnResponseOptionIdx == optionId) && !isAns) {
-                            optionImgSrc = require("../../assets/wrongOption.png");
-                            optionBorder = styles.wrongAnsBorder;
-                        }
+                            const isAns = item.isAns;
+                            const optionId = item.optionId;
+                            if ((selectedOptionId == optionId || selectedQstnResponseOptionIdx == optionId) && isAns) {
+                                optionImgSrc = require("../../assets/rightOption.png");
+                                optionBorder = styles.rightAnsBorder;
+                            } else if ((selectedOptionId == optionId || selectedQstnResponseOptionIdx == optionId) && !isAns) {
+                                optionImgSrc = require("../../assets/wrongOption.png");
+                                optionBorder = styles.wrongAnsBorder;
+                            }
 
-                        return (
-                            <TouchableOpacity
-                                key={idx}
-                                style={[styles.option, optionBorder]}
-                                onPress={() => handleOptionPressed(idx, item, selectedQuestion)}
-                            >
-                                <Text style={styles.optionText}>{item.option}</Text>
-                                <Image style={styles.optionImg} source={optionImgSrc} />
-                            </TouchableOpacity>
-                        )
-                    })
-                }
-
-                <View style={[styles.container, styles.btnsContainer]}>
-                    {renderDirectionButtons(activeQstnIdx,totalQstnsCount)}
-                </View>
-            </ScrollView>
-        )
-                   
-    }
-//function to render direction buttons
-function renderDirectionButtons() {
-        
-        
-    var isPrevBtnActive = activeQstnIdx >= 0;
-    var isNextBtnActive = activeQstnIdx <= totalQstnsCount - 1;
-    return (
-        <>
-            <BasicButton
-                key={0}
-                text="Prev"
-                customStyle={isPrevBtnActive ? styles.button : styles.disabledButton}
-                onPress={isPrevBtnActive ? hanldePrevBtnClick : null}
-            />
-            <BasicButton
-                key={1}
-                text="Next"
-                customStyle={isNextBtnActive ? styles.button : styles.disabledButton}
-                onPress={isNextBtnActive ?  handleNextBtnClick : null}
-            />
-        </>
-    )
-
-}
-
-async function handleSubmitBtnClick() {
-    const loggedUserId = await AsyncStorage.getItem("useruid");
-    if (loggedUserId && quizId) {
-        setIsLoading(true);
-        
-        // adding responses for that quiz in firebase db
-        const usersDbRef = firebase.app().database().ref('users/');
-        usersDbRef
-            .child(loggedUserId + "/quizResponses/" + quizId)
-            .set({
-                "quizId": quizId,
-                "responses": qstnResponses
-            },
-                (error) => {
-                    if (error) {
-                        setIsLoading(false);
-
-                        navigation.goBack();
-                    } else {
-                        setIsLoading(false);
-
-                        navigation.goBack();
+                            return (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={[styles.option, optionBorder]}
+                                    onPress={() => handleOptionPressed(idx, item, selectedQuestion)}
+                                >
+                                    <Text style={styles.optionText}>{item.option}</Text>
+                                    <Image style={styles.optionImg} source={optionImgSrc} />
+                                </TouchableOpacity>
+                            )
+                        })
                     }
-                });
-        // adding responses for that quiz in firebase db 
 
+                    <View style={[styles.container, styles.btnsContainer]}>
+                        {renderDirectionButtons()}
+                    </View>
+                </ScrollView>
+            )
+        }
     }
-}
+
+    //function to render direction buttons
+    function renderDirectionButtons() {
+        var isPrevBtnActive = activeQstnIdx > 0;
+        var isNextBtnActive = activeQstnIdx < totalQstnsCount - 1;
+        return (
+            <>
+                <BasicButton
+                    key={0}
+                    text="Prev"
+                    customStyle={isPrevBtnActive ? styles.button : styles.disabledButton}
+                    onPress={isPrevBtnActive ? hanldePrevBtnClick : null}
+                />
+                <BasicButton
+                    key={1}
+                    text="Next"
+                    customStyle={isNextBtnActive ? styles.button : styles.disabledButton}
+                    onPress={isNextBtnActive ? hanldeNextBtnClick : null}
+                />
+            </>
+        )
+    }
+
+    //function to handle when submit btn is pressed on
+    async function handleSubmitBtnClick() {
+        const loggedUserId = await AsyncStorage.getItem('loggedUserId');
+        if (loggedUserId && quizId) {
+            setIsLoading(true);
+
+            // adding responses for that quiz in firebase db
+            const usersDbRef = firebase.app().database().ref('users/');
+            usersDbRef
+                .child(loggedUserId + "/quizResponses/" + quizId)
+                .set({
+                    "quizId": quizId,
+                    "responses": qstnResponses
+                },
+                    (error) => {
+                        if (error) {
+                            setIsLoading(false);
+
+                            navigation.goBack();
+                        } else {
+                            setIsLoading(false);
+
+                            navigation.goBack();
+                        }
+                    });
+
+        }
+    }
 
     //function to handle next/prev btn click
     function hanldePrevBtnClick() {
@@ -201,7 +182,7 @@ async function handleSubmitBtnClick() {
         }
     }
 
-    function handleNextBtnClick() {
+    function hanldeNextBtnClick() {
         if (activeQstnIdx < totalQstnsCount - 1) {
             setSelectedQstnResponseOptionIdx(null);
             setActiveQstnIdx(activeQstnIdx + 1);
@@ -210,7 +191,7 @@ async function handleSubmitBtnClick() {
 
     //function to shuffle options
     function shuffle(array) {
-       var currentIndex = array.length, temporaryValue, randomIndex;
+        var currentIndex = array.length, temporaryValue, randomIndex;
 
         // While there remain elements to shuffle...
         while (0 !== currentIndex) {
@@ -231,9 +212,6 @@ async function handleSubmitBtnClick() {
     //component rendering
     return (
         <View style={styles.root}>
-            {/* <Text> QuizName:  {quizName}</Text>
-            <Text> quizId:  {quizId}</Text> */}
-            
             {
                 isLoading ?
                     <ActivityIndicator style={styles.loader} />
@@ -251,9 +229,9 @@ async function handleSubmitBtnClick() {
                             <View style={styles.divider}></View>
                         </View>
 
-                        {/* <Image source={quizImgUri || require("../../assets/quiz.jpg")} style={styles.image} /> */}
-                        {renderQuestion()}
+                        <Image source={quizImgUri || require("../../assets/quiz.jpg")} style={styles.image} />
 
+                        {renderQuestion()}
                     </>
             }
         </View >
